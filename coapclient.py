@@ -18,7 +18,7 @@ def usage():  # pragma: no cover
     print "\t-p, --path=\t\t\tPath of the request"
     print "\t-P, --payload=\t\tPayload of the request"
     print "\t-f, --payload-file=\t\tFile with payload of the request"
-
+    print "\t ejemplo: python coapclient.py -o GET -p coap://[b026::1a10:4e00:201:66]:5683/event_values"
 
 def client_callback(response):
     print "Callback"
@@ -27,26 +27,30 @@ def client_callback(response):
 def client_callback_observe(response):  # pragma: no cover
     global client
     print "Callback_observe"
-    check = True
-    while check:
-        chosen = raw_input("Stop observing? [y/N]: ")
-        if chosen != "" and not (chosen == "n" or chosen == "N" or chosen == "y" or chosen == "Y"):
-            print "Unrecognized choose."
-            continue
-        elif chosen == "y" or chosen == "Y":
-            while True:
-                rst = raw_input("Send RST message? [Y/n]: ")
-                if rst != "" and not (rst == "n" or rst == "N" or rst == "y" or rst == "Y"):
-                    print "Unrecognized choose."
-                    continue
-                elif rst == "" or rst == "y" or rst == "Y":
-                    client.cancel_observing(response, True)
-                else:
-                    client.cancel_observing(response, False)
-                check = False
+    try:    
+        check = True
+        while check:
+            chosen = raw_input("Stop observing? [y/N]: ")
+            if chosen != "" and not (chosen == "n" or chosen == "N" or chosen == "y" or chosen == "Y"):
+                print "Unrecognized choose."
+                continue
+            elif chosen == "y" or chosen == "Y":
+                while True:
+                    rst = raw_input("Send RST message? [Y/n]: ")
+                    if rst != "" and not (rst == "n" or rst == "N" or rst == "y" or rst == "Y"):
+                        print "Unrecognized choose."
+                        continue
+                    elif rst == "" or rst == "y" or rst == "Y":
+                        client.cancel_observing(response, True)
+                    else:
+                        client.cancel_observing(response, False)
+                    check = False
+                    break
+            else:
                 break
-        else:
-            break
+    except KeyboardInterrupt:
+        print "Saliendo del observe"
+        sys.exit()             
 
 
 def main():  # pragma: no cover
@@ -62,6 +66,8 @@ def main():  # pragma: no cover
         print str(err)  # will print something like "option -a not recognized"
         usage()
         sys.exit(2)
+    
+        
     for o, a in opts:
         if o in ("-o", "--operation"):
             op = a
@@ -100,21 +106,42 @@ def main():  # pragma: no cover
         host = tmp
     except socket.gaierror:
         pass
+    except KeyboardInterrupt:
+        print "keyboard interruption Marcelo"
+        sys.exit(2)
     client = HelperClient(server=(host, port))
+    print host,port,path
+    
     if op == "GET":
+             
         if path is None:
             print "Path cannot be empty for a GET request"
             usage()
             sys.exit(2)
         response = client.get(path)
-        print response.pretty_print()
-        client.stop()
+        if response==None:
+            print "Ninguna respuesta"
+            client.stop()
+        else:    
+            print response.pretty_print()
+            ##Only for print the payload 
+            #print(response.pretty_print._payload)
+            client.stop()
+        
     elif op == "OBSERVE":
         if path is None:
             print "Path cannot be empty for a GET request"
             usage()
             sys.exit(2)
-        client.observe(path, client_callback_observe)
+        response=client.observe(path, client_callback_observe)
+        if response==None:
+            print "Ninguna respuesta"
+            client.stop()
+        else:    
+            print response.pretty_print()
+            ##Only for print the payload 
+            #print(response.pretty_print._payload)
+            client.stop()
         
     elif op == "DELETE":
         if path is None:
@@ -146,8 +173,15 @@ def main():  # pragma: no cover
             usage()
             sys.exit(2)
         response = client.put(path, payload)
-        print response.pretty_print()
+        if response==None:
+        print "Ninguna respuesta"
         client.stop()
+        else:    
+        print response.pretty_print()
+        ##Only for print the payload 
+        #print(response.pretty_print._payload)
+        client.stop()
+
     elif op == "DISCOVER":
         response = client.discover()
         print response.pretty_print()
